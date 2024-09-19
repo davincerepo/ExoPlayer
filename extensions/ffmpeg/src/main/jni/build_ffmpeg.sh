@@ -35,36 +35,44 @@ COMMON_OPTIONS="
     --disable-postproc
     --disable-avfilter
     --disable-symver
-    --disable-avresample
     --enable-swresample
+    --enable-libdav1d
+    --enable-decoder=libdav1d
+    --enable-parser=*
     --extra-ldexeflags=-pie
     "
+# 命令行帮助里面没有libdav1d，但实际需要的
 TOOLCHAIN_PREFIX="${NDK_PATH}/toolchains/llvm/prebuilt/${HOST_PLATFORM}/bin"
+echo "start set decoders"
 for decoder in "${ENABLED_DECODERS[@]}"
 do
     COMMON_OPTIONS="${COMMON_OPTIONS} --enable-decoder=${decoder}"
 done
-cd "${FFMPEG_MODULE_PATH}/jni/ffmpeg"
-./configure \
-    --libdir=android-libs/armeabi-v7a \
-    --arch=arm \
-    --cpu=armv7-a \
-    --cross-prefix="${TOOLCHAIN_PREFIX}/armv7a-linux-androideabi16-" \
-    --nm="${TOOLCHAIN_PREFIX}/llvm-nm" \
-    --ar="${TOOLCHAIN_PREFIX}/llvm-ar" \
-    --ranlib="${TOOLCHAIN_PREFIX}/llvm-ranlib" \
-    --strip="${TOOLCHAIN_PREFIX}/llvm-strip" \
-    --extra-cflags="-march=armv7-a -mfloat-abi=softfp" \
-    --extra-ldflags="-Wl,--fix-cortex-a8" \
-    ${COMMON_OPTIONS}
-make -j$JOBS
-make install-libs
-make clean
+cd "${FFMPEG_MODULE_PATH}/src/main/jni/ffmpeg"
+
+# ./configure \
+#     --libdir=android-libs/armeabi-v7a \
+#     --arch=arm \
+#     --cpu=armv7-a \
+#     --cross-prefix="${TOOLCHAIN_PREFIX}/armv7a-linux-androideabi16-" \
+#     --nm="${TOOLCHAIN_PREFIX}/llvm-nm" \
+#     --ar="${TOOLCHAIN_PREFIX}/llvm-ar" \
+#     --ranlib="${TOOLCHAIN_PREFIX}/llvm-ranlib" \
+#     --strip="${TOOLCHAIN_PREFIX}/llvm-strip" \
+#     --extra-cflags="-march=armv7-a -mfloat-abi=softfp" \
+#     --extra-ldflags="-Wl,--fix-cortex-a8" \
+#     ${COMMON_OPTIONS}
+# echo "start make..."
+# make -j$JOBS
+# make install-libs
+# make clean
+echo "start configure..."
 ./configure \
     --libdir=android-libs/arm64-v8a \
     --arch=aarch64 \
     --cpu=armv8-a \
     --cross-prefix="${TOOLCHAIN_PREFIX}/aarch64-linux-android21-" \
+    --pkg-config="pkg-config" \
     --nm="${TOOLCHAIN_PREFIX}/llvm-nm" \
     --ar="${TOOLCHAIN_PREFIX}/llvm-ar" \
     --ranlib="${TOOLCHAIN_PREFIX}/llvm-ranlib" \
@@ -72,32 +80,32 @@ make clean
     ${COMMON_OPTIONS}
 make -j$JOBS
 make install-libs
-make clean
-./configure \
-    --libdir=android-libs/x86 \
-    --arch=x86 \
-    --cpu=i686 \
-    --cross-prefix="${TOOLCHAIN_PREFIX}/i686-linux-android16-" \
-    --nm="${TOOLCHAIN_PREFIX}/llvm-nm" \
-    --ar="${TOOLCHAIN_PREFIX}/llvm-ar" \
-    --ranlib="${TOOLCHAIN_PREFIX}/llvm-ranlib" \
-    --strip="${TOOLCHAIN_PREFIX}/llvm-strip" \
-    --disable-asm \
-    ${COMMON_OPTIONS}
-make -j$JOBS
-make install-libs
-make clean
-./configure \
-    --libdir=android-libs/x86_64 \
-    --arch=x86_64 \
-    --cpu=x86_64 \
-    --cross-prefix="${TOOLCHAIN_PREFIX}/x86_64-linux-android21-" \
-    --nm="${TOOLCHAIN_PREFIX}/llvm-nm" \
-    --ar="${TOOLCHAIN_PREFIX}/llvm-ar" \
-    --ranlib="${TOOLCHAIN_PREFIX}/llvm-ranlib" \
-    --strip="${TOOLCHAIN_PREFIX}/llvm-strip" \
-    --disable-asm \
-    ${COMMON_OPTIONS}
-make -j$JOBS
-make install-libs
-make clean
+# make clean
+# ./configure \
+#     --libdir=android-libs/x86 \
+#     --arch=x86 \
+#     --cpu=i686 \
+#     --cross-prefix="${TOOLCHAIN_PREFIX}/i686-linux-android16-" \
+#     --nm="${TOOLCHAIN_PREFIX}/llvm-nm" \
+#     --ar="${TOOLCHAIN_PREFIX}/llvm-ar" \
+#     --ranlib="${TOOLCHAIN_PREFIX}/llvm-ranlib" \
+#     --strip="${TOOLCHAIN_PREFIX}/llvm-strip" \
+#     --disable-asm \
+#     ${COMMON_OPTIONS}
+# make -j$JOBS
+# make install-libs
+# make clean
+# ./configure \
+#     --libdir=android-libs/x86_64 \
+#     --arch=x86_64 \
+#     --cpu=x86_64 \
+#     --cross-prefix="${TOOLCHAIN_PREFIX}/x86_64-linux-android21-" \
+#     --nm="${TOOLCHAIN_PREFIX}/llvm-nm" \
+#     --ar="${TOOLCHAIN_PREFIX}/llvm-ar" \
+#     --ranlib="${TOOLCHAIN_PREFIX}/llvm-ranlib" \
+#     --strip="${TOOLCHAIN_PREFIX}/llvm-strip" \
+#     --disable-asm \
+#     ${COMMON_OPTIONS}
+# make -j$JOBS
+# make install-libs
+# make clean

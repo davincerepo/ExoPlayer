@@ -20,7 +20,27 @@ if (project.file('src/main/jni/ffmpeg').exists()) {
     // Should match cmake_minimum_required.
     android.externalNativeBuild.cmake.version = '3.21.0+'
 }
-
+android {
+    defaultConfig {
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false // 是否启用混淆
+            debuggable false // 确保 Release 不包含调试信息
+        }
+        debug {
+            minifyEnabled false // 是否启用混淆
+            debuggable false // 确保 Release 不包含调试信息
+        }
+        relWithDebugInfo {
+             minifyEnabled false // 是否启用混淆
+             debuggable false // 确保 Release 不包含调试信息
+         }
+    }
+}
 dependencies {
     implementation project(modulePrefix + 'library-decoder')
     // TODO(b/203752526): Remove this dependency.

@@ -37,6 +37,7 @@ extern "C" {
 #include <libavutil/opt.h>
 #include <libswresample/swresample.h>
 #include <libavutil/imgutils.h>
+#include <libavutil/log.h>
 }
 
 #define LOG_TAG "ffmpeg_jni"
@@ -46,31 +47,31 @@ extern "C" {
 #define LIBRARY_FUNC(RETURN_TYPE, NAME, ...)                              \
   extern "C" {                                                            \
   JNIEXPORT RETURN_TYPE                                                   \
-      Java_com_google_android_exoplayer2_ext_ffmpeg_FfmpegLibrary_##NAME( \
+      Java_com_lingoplay_videostream_ffmpeg_FfmpegLibrary_##NAME( \
           JNIEnv *env, jobject thiz, ##__VA_ARGS__);                      \
   }                                                                       \
   JNIEXPORT RETURN_TYPE                                                   \
-      Java_com_google_android_exoplayer2_ext_ffmpeg_FfmpegLibrary_##NAME( \
+      Java_com_lingoplay_videostream_ffmpeg_FfmpegLibrary_##NAME( \
           JNIEnv *env, jobject thiz, ##__VA_ARGS__)
 
 #define AUDIO_DECODER_FUNC(RETURN_TYPE, NAME, ...)                             \
   extern "C" {                                                                 \
   JNIEXPORT RETURN_TYPE                                                        \
-      Java_com_google_android_exoplayer2_ext_ffmpeg_FfmpegAudioDecoder_##NAME( \
+      Java_com_lingoplay_videostream_ffmpeg_FfmpegAudioDecoder_##NAME( \
           JNIEnv *env, jobject thiz, ##__VA_ARGS__);                           \
   }                                                                            \
   JNIEXPORT RETURN_TYPE                                                        \
-      Java_com_google_android_exoplayer2_ext_ffmpeg_FfmpegAudioDecoder_##NAME( \
+      Java_com_lingoplay_videostream_ffmpeg_FfmpegAudioDecoder_##NAME( \
           JNIEnv *env, jobject thiz, ##__VA_ARGS__)
 
 #define VIDEO_DECODER_FUNC(RETURN_TYPE, NAME, ...)                             \
   extern "C" {                                                                 \
   JNIEXPORT RETURN_TYPE                                                        \
-      Java_com_google_android_exoplayer2_ext_ffmpeg_FfmpegVideoDecoder_##NAME( \
+      Java_com_lingoplay_videostream_ffmpeg_FfmpegVideoDecoder_##NAME( \
           JNIEnv *env, jobject thiz, ##__VA_ARGS__);                           \
   }                                                                            \
   JNIEXPORT RETURN_TYPE                                                        \
-      Java_com_google_android_exoplayer2_ext_ffmpeg_FfmpegVideoDecoder_##NAME( \
+      Java_com_lingoplay_videostream_ffmpeg_FfmpegVideoDecoder_##NAME( \
           JNIEnv *env, jobject thiz, ##__VA_ARGS__)
 
 #define ERROR_STRING_BUFFER_LENGTH 256
@@ -88,6 +89,12 @@ static const int VIDEO_DECODER_SUCCESS = 0;
 static const int VIDEO_DECODER_ERROR_INVALID_DATA = -1;
 static const int VIDEO_DECODER_ERROR_OTHER = -2;
 static const int VIDEO_DECODER_ERROR_READ_FRAME = -3;
+
+void logcat_callback(void* ptr, int level, const char* fmt, va_list vl) {
+    char log_buf[1024];
+    vsnprintf(log_buf, sizeof(log_buf), fmt, vl);
+    __android_log_print(ANDROID_LOG_INFO, "FFmpeg", "%s", log_buf);
+}
 
 /**
  * Returns the AVCodec with the specified name, or NULL if it is not available.
@@ -131,7 +138,8 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved) {
   if (vm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_6) != JNI_OK) {
     return -1;
   }
-  avcodec_register_all();
+  av_log_set_callback(logcat_callback);
+  //avcodec_register_all(); //6.1 no need for explicit registration
   return JNI_VERSION_1_6;
 }
 
@@ -215,14 +223,14 @@ AUDIO_DECODER_FUNC(jlong, ffmpegReset, jlong jContext, jbyteArray extraData) {
     // Release and recreate the context if the codec is TrueHD.
     // TODO: Figure out why flushing doesn't work for this codec.
     releaseContext(context);
-    AVCodec *codec = avcodec_find_decoder(codecId);
+    const AVCodec *codec = avcodec_find_decoder(codecId);
     if (!codec) {
       LOGE("Unexpected error finding codec %d.", codecId);
       return 0L;
     }
     jboolean outputFloat =
         (jboolean)(context->request_sample_fmt == OUTPUT_FORMAT_PCM_FLOAT);
-    return (jlong)createContext(env, codec, extraData, outputFloat,
+    return (jlong)createContext(env, const_cast<AVCodec *>(codec), extraData, outputFloat,
                                 /* rawSampleRate= */ -1,
                                 /* rawChannelCount= */ -1);
   }
@@ -242,9 +250,9 @@ AVCodec *getCodecByName(JNIEnv *env, jstring codecName) {
     return NULL;
   }
   const char *codecNameChars = env->GetStringUTFChars(codecName, NULL);
-  AVCodec *codec = avcodec_find_decoder_by_name(codecNameChars);
+  const AVCodec *codec = avcodec_find_decoder_by_name(codecNameChars);
   env->ReleaseStringUTFChars(codecName, codecNameChars);
-  return codec;
+  return const_cast<AVCodec *>(codec); // bruteforce cast...
 }
 
 AVCodecContext *createContext(JNIEnv *env, AVCodec *codec, jbyteArray extraData,
@@ -506,7 +514,7 @@ JniContext *createVideoContext(JNIEnv *env,
 
   // Populate JNI References.
   const jclass outputBufferClass = env->FindClass(
-      "com/google/android/exoplayer2/decoder/VideoDecoderOutputBuffer");
+      "androidx/media3/decoder/VideoDecoderOutputBuffer");
   jniContext->data_field = env->GetFieldID(outputBufferClass, "data", "Ljava/nio/ByteBuffer;");
   jniContext->width_field = env->GetFieldID(outputBufferClass, "width", "I");
   jniContext->height_field = env->GetFieldID(outputBufferClass, "height", "I");
@@ -651,7 +659,7 @@ VIDEO_DECODER_FUNC(jint, ffmpegReceiveFrame, jlong jContext, jint outputMode, jo
   }
 
   auto data_object = env->GetObjectField(jOutputBuffer, jniContext->data_field);
-  auto *data = reinterpret_cast<uint8 *>(env->GetDirectBufferAddress(data_object));
+  auto *data = reinterpret_cast<uint8_t *>(env->GetDirectBufferAddress(data_object));
   const int32_t uvHeight = (videoHeight + 1) / 2;
   const uint64_t yLength = videoWidth * videoHeight;
   const uint64_t uvLength = (videoWidth + 1) / 2 * uvHeight;
@@ -664,6 +672,7 @@ VIDEO_DECODER_FUNC(jint, ffmpegReceiveFrame, jlong jContext, jint outputMode, jo
   } else if (jniContext->rotate_degree == 270) {
     rotate = libyuv::kRotate270;
   }
+
   libyuv::I420Rotate(
       frame->data[0], frame->linesize[0],
       frame->data[1], frame->linesize[1],

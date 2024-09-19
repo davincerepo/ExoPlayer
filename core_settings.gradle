@@ -69,6 +69,8 @@ include modulePrefix + 'extension-av1'
 project(modulePrefix + 'extension-av1').projectDir = new File(rootDir, 'extensions/av1')
 include modulePrefix + 'extension-ffmpeg'
 project(modulePrefix + 'extension-ffmpeg').projectDir = new File(rootDir, 'extensions/ffmpeg')
+include ':extension-ffmpeg:ndklibyuv'
+project(':extension-ffmpeg:ndklibyuv').projectDir = new File(rootDir, 'extensions/ffmpeg/ndklibyuv')
 include modulePrefix + 'extension-flac'
 project(modulePrefix + 'extension-flac').projectDir = new File(rootDir, 'extensions/flac')
 include modulePrefix + 'extension-opus'
